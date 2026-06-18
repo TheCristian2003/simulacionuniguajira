@@ -4,10 +4,11 @@ using UnityEngine.InputSystem;
 public class PlayerController : MonoBehaviour
 {
     [Header("Movimiento")]
-    public float speed = 8f;
+    public float walkSpeed = 4f;
+    public float runSpeed = 8f;
     public float gravity = -20f;
     public float jumpHeight = 1.5f;
-
+public float rotationSpeed = 120f;
     [Header("Modelo visual")]
     public Transform visualModel;
     public Vector3 visualLocalPosition = Vector3.zero;
@@ -82,46 +83,52 @@ public class PlayerController : MonoBehaviour
     }
 
     void MovePlayer()
+{
+    Vector2 input = Vector2.zero;
+
+    if (Keyboard.current != null)
     {
-        Vector2 input = Vector2.zero;
-
-        if (Keyboard.current != null)
-        {
-            if (Keyboard.current.wKey.isPressed) input.y = 1;
-            if (Keyboard.current.sKey.isPressed) input.y = -1;
-            if (Keyboard.current.aKey.isPressed) input.x = -1;
-            if (Keyboard.current.dKey.isPressed) input.x = 1;
-        }
-
-        Vector3 move = transform.right * input.x + transform.forward * input.y;
-
-        if (move.magnitude > 1)
-            move.Normalize();
-
-        if (controller.isGrounded && verticalVelocity < 0)
-            verticalVelocity = -2f;
-
-        if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame && controller.isGrounded)
-        {
-            verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
-        }
-
-        verticalVelocity += gravity * Time.deltaTime;
-
-        Vector3 finalMove = move * speed;
-        finalMove.y = verticalVelocity;
-
-        controller.Move(finalMove * Time.deltaTime);
-
-        if (playerAnimator != null)
-        {
-            bool isWalking = input.magnitude > 0.1f;
-            playerAnimator.SetBool("isWalking", isWalking);
-        }
+        if (Keyboard.current.wKey.isPressed) input.y = 1;
+        if (Keyboard.current.sKey.isPressed) input.y = -1;
+        if (Keyboard.current.aKey.isPressed) input.x = -1;
+        if (Keyboard.current.dKey.isPressed) input.x = 1;
     }
 
-    public void SetOnStairs(bool value)
+    // A y D giran el personaje, W y S lo mueven adelante/atrás
+    float turnAmount = input.x * rotationSpeed * Time.deltaTime;
+    transform.Rotate(Vector3.up * turnAmount);
+
+    Vector3 move = transform.forward * input.y;
+
+    if (controller.isGrounded && verticalVelocity < 0)
+        verticalVelocity = -2f;
+
+    if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame && controller.isGrounded)
     {
+        verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
+    }
+
+    verticalVelocity += gravity * Time.deltaTime;
+
+    bool isRunning = Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed;
+    float currentSpeed = isRunning ? runSpeed : walkSpeed;
+
+    Vector3 finalMove = move * currentSpeed;
+    finalMove.y = verticalVelocity;
+
+    controller.Move(finalMove * Time.deltaTime);
+
+    if (playerAnimator != null)
+    {
+        playerAnimator.SetFloat("Speed", move.magnitude * currentSpeed);
+        playerAnimator.SetBool("isWalking", input.magnitude > 0.1f);
+        playerAnimator.SetBool("isRunning", isRunning && input.magnitude > 0.1f);
+    }
+}
+
+    public void SetOnStairs(bool value, bool ascending = true)
+    {
+        
         isOnStairs = value;
 
         if(playerAnimator != null)
